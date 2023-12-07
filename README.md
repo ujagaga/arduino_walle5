@@ -5,3 +5,7 @@ Some robots I like are WALL-E, Johny 5,... Building my own hybrid solution. Not 
 ## How to start ##
 
 Not yet usable. Just starting the project.
+
+## Status ##
+
+Currently creating the base with battery and caterpillar, using wifi to drive it. 
