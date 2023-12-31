@@ -14,19 +14,23 @@
   copies or substantial portions of the Software.
 *********/
 
-#include "esp_camera.h"
+#include <esp_camera.h>
 #include <WiFi.h>
-#include "esp_timer.h"
-#include "img_converters.h"
-#include "Arduino.h"
-#include "fb_gfx.h"
-#include "soc/soc.h" //disable brownout problems
-#include "soc/rtc_cntl_reg.h"  //disable brownout problems
-#include "esp_http_server.h"
+#include <esp_timer.h>
+#include <img_converters.h>
+#include <Arduino.h>
+#include <fb_gfx.h>
+#include <soc/soc.h> //disable brownout problems
+#include <soc/rtc_cntl_reg.h>  //disable brownout problems
+#include <esp_http_server.h>
+#include <ArduinoOTA.h>
+#include "config.h"
 
-//Replace with your network credentials
-const char* ssid = "Rada_i_Slavica";
-const char* password = "ohana130315";
+
+const char* ssid = AP_SSID;
+const char* password = AP_PASS;
+
+static bool ota_started_flag = false;
 
 #define PART_BOUNDARY "123456789000000000000987654321"
 
@@ -122,6 +126,21 @@ static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
 httpd_handle_t stream_httpd = NULL;
+httpd_handle_t command_httpd = NULL;
+
+void OTA_init(){
+  ArduinoOTA.setPort(3232);
+  ArduinoOTA.setHostname("ESP32-Eye");
+  // No authentication by default
+  // ArduinoOTA.setPassword("password_here");
+  // Password can be set with it's md5 value as well
+  // MD5(admin) = md5_hash_here
+  // ArduinoOTA.setPasswordHash("md5_hash_here");
+  ArduinoOTA.begin();
+  ota_started_flag = true;
+  Serial.println("Starting OTA server");
+}
+
 
 static esp_err_t stream_handler(httpd_req_t *req){
   camera_fb_t * fb = NULL;
@@ -182,9 +201,15 @@ static esp_err_t stream_handler(httpd_req_t *req){
   return res;
 }
 
+static esp_err_t start_update(httpd_req_t *req){
+  OTA_init();
+  while(true){
+    ArduinoOTA.handle();
+  }
+}
+
 void startCameraServer(){
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.server_port = 80;
 
   httpd_uri_t index_uri = {
     .uri       = "/",
@@ -192,11 +217,25 @@ void startCameraServer(){
     .handler   = stream_handler,
     .user_ctx  = NULL
   };
+
+  httpd_uri_t ota_update_uri = {
+    .uri       = "/update",
+    .method    = HTTP_GET,
+    .handler   = start_update,
+    .user_ctx  = NULL
+  };
   
   //Serial.printf("Starting web server on port: '%d'\n", config.server_port);
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &index_uri);
   }
+
+  config.server_port += 1;
+  config.ctrl_port += 1;
+
+  if (httpd_start(&command_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(command_httpd, &ota_update_uri);
+  }  
 }
 
 void setup() {
@@ -257,6 +296,7 @@ void setup() {
   
   // Start streaming web server
   startCameraServer();
+  
 }
 
 void loop() {
