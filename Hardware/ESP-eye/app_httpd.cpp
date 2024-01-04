@@ -11,16 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "esp_http_server.h"
-#include "esp_timer.h"
-#include "esp_camera.h"
-#include "img_converters.h"
-#include "fb_gfx.h"
-#include "esp32-hal-ledc.h"
-#include "sdkconfig.h"
+#include <esp_http_server.h>
+#include <esp_timer.h>
+#include <esp_camera.h>
+#include <img_converters.h>
+#include <fb_gfx.h>
+#include <esp32-hal-ledc.h>
+#include <sdkconfig.h>
 #include "camera_index.h"
 #include <pgmspace.h> 
 #include <Arduino.h>
+#include "camera_pins.h"
 
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
@@ -320,7 +321,15 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     else if (!strcmp(variable, "hmirror"))
         res = s->set_hmirror(s, val);
     else if (!strcmp(variable, "vflip"))
-        res = s->set_vflip(s, val);    
+        res = s->set_vflip(s, val);  
+    else if (!strcmp(variable, "ir_led_intensity")) {
+        if (val > 0){
+          digitalWrite(IR_LED_GPIO_NUM, HIGH);
+        }else{
+          digitalWrite(IR_LED_GPIO_NUM, LOW);
+        }
+            
+    }  
 #if CONFIG_LED_ILLUMINATOR_ENABLED
     else if (!strcmp(variable, "led_intensity")) {
         led_duty = val;
@@ -541,4 +550,10 @@ void setupLedFlash(int pin)
 {
     ledcSetup(LED_LEDC_CHANNEL, 5000, 8);
     ledcAttachPin(pin, LED_LEDC_CHANNEL);
+}
+
+void setupIrLed(int pin) 
+{
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, HIGH);
 }

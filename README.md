@@ -4,8 +4,8 @@ Some robots I like are WALL-E, Johny 5,... Building my own hybrid solution. Not 
 
 ## How to start ##
 
-Not yet usable. Just starting the project.
+Rename Hardware/ESP-eye/config.h.example to Hardware/ESP-eye/config.h and adjust nyour WEiFi credentials
 
 ## Status ##
 
-Currently creating the base with battery and caterpillar, using wifi to drive it. 
+Not yet usable. Just starting the project. Currently creating the base with battery and caterpillar, using wifi to drive it. 

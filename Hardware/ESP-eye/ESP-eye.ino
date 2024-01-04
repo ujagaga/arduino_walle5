@@ -1,29 +1,9 @@
-#include "esp_camera.h"
+#include <esp_camera.h>
 #include <WiFi.h>
-
-//
-// WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
-//            Ensure ESP32 Wrover Module or other board with PSRAM is selected
-//            Partial images will be transmitted if image exceeds buffer size
-//
-//            You must select partition scheme from the board menu that has at least 3MB APP space.
-//            Face Recognition is DISABLED for ESP32 and ESP32-S2, because it takes up from 15 
-//            seconds to process single frame. Face Detection is ENABLED if PSRAM is enabled as well
-
-// ===================
-// Select camera model
-// ===================
-#define CAMERA_MODEL_AI_THINKER // Has PSRAM
 #include "camera_pins.h"
+#include "config.h"
+#include "app_httpd.h"
 
-// ===========================
-// Enter your WiFi credentials
-// ===========================
-const char* ssid = "Rada_i_Slavica";
-const char* password = "ohana130315";
-
-void startCameraServer();
-void setupLedFlash(int pin);
 
 void setup() {
   Serial.begin(115200);
@@ -93,6 +73,8 @@ void setup() {
 #if defined(LED_GPIO_NUM)
   setupLedFlash(LED_GPIO_NUM);
 #endif
+
+  setupIrLed(IR_LED_GPIO_NUM);
 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
