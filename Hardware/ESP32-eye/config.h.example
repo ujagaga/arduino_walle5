@@ -1,8 +1,0 @@
-#ifndef CONFIG_H
-#define CONFIG_H
-
-//Replace with your network credentials
-#define AP_SSID   "Your network name"
-#define AP_PASS   "Your network password"
-
-#endif
