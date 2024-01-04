@@ -89,10 +89,7 @@ void enable_led(bool en)
     {
         duty = CONFIG_LED_MAX_INTENSITY;
     }
-    ledcWrite(LED_LEDC_CHANNEL, duty);
-    //ledc_set_duty(CONFIG_LED_LEDC_SPEED_MODE, CONFIG_LED_LEDC_CHANNEL, duty);
-    //ledc_update_duty(CONFIG_LED_LEDC_SPEED_MODE, CONFIG_LED_LEDC_CHANNEL);
-    log_i("Set LED intensity to %d", duty);
+    ledcWrite(LED_LEDC_CHANNEL, duty);   
 }
 #endif
 
@@ -128,7 +125,6 @@ static esp_err_t capture_handler(httpd_req_t *req)
 
     if (!fb)
     {
-        log_e("Camera capture failed");
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -154,7 +150,6 @@ static esp_err_t capture_handler(httpd_req_t *req)
     }
     esp_camera_fb_return(fb);
 
-    log_i("JPG: %uB %ums", (uint32_t)(fb_len), (uint32_t)((fr_end - fr_start) / 1000));
     return res;
 }
 
@@ -192,7 +187,6 @@ static esp_err_t stream_handler(httpd_req_t *req)
         fb = esp_camera_fb_get();
         if (!fb)
         {
-          log_e("Camera capture failed");
           res = ESP_FAIL;
         }
         else
@@ -206,7 +200,6 @@ static esp_err_t stream_handler(httpd_req_t *req)
               fb = NULL;
               if (!jpeg_converted)
               {
-                  log_e("JPEG compression failed");
                   res = ESP_FAIL;
               }
           }
@@ -242,21 +235,12 @@ static esp_err_t stream_handler(httpd_req_t *req)
         }
         if (res != ESP_OK)
         {
-            log_e("Send frame failed");
             break;
         }
         int64_t fr_end = esp_timer_get_time();
 
         int64_t frame_time = fr_end - last_frame;
         frame_time /= 1000;
-
-        log_i("MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)"
-                 ,
-                 (uint32_t)(_jpg_buf_len),
-                 (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
-                 avg_frame_time, 1000.0 / avg_frame_time
-
-        );
     }
 
 #if CONFIG_LED_ILLUMINATOR_ENABLED
@@ -307,7 +291,6 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     free(buf);
 
     int val = atoi(value);
-    log_i("%s = %d", variable, val);
     sensor_t *s = esp_camera_sensor_get();
     int res = 0;
 
@@ -324,11 +307,10 @@ static esp_err_t cmd_handler(httpd_req_t *req)
         res = s->set_vflip(s, val);  
     else if (!strcmp(variable, "ir_led_intensity")) {
         if (val > 0){
-          digitalWrite(IR_LED_GPIO_NUM, HIGH);
-        }else{
           digitalWrite(IR_LED_GPIO_NUM, LOW);
-        }
-            
+        }else{          
+          digitalWrite(IR_LED_GPIO_NUM, HIGH);
+        }            
     }  
 #if CONFIG_LED_ILLUMINATOR_ENABLED
     else if (!strcmp(variable, "led_intensity")) {
@@ -339,7 +321,6 @@ static esp_err_t cmd_handler(httpd_req_t *req)
 #endif
 
     else {
-        log_i("Unknown command: %s", variable);
         res = -1;
     }
 
@@ -451,7 +432,6 @@ static esp_err_t index_handler(httpd_req_t *req)
         return httpd_resp_send(req, response.c_str(), -1);
         // return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
     } else {
-        log_e("Camera sensor not found");
         return httpd_resp_send_500(req);
     }
 }
@@ -528,7 +508,6 @@ void startCameraServer()
 
     ra_filter_init(&ra_filter, 20);
 
-    log_i("Starting web server on port: '%d'", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK)
     {
         httpd_register_uri_handler(camera_httpd, &index_uri);
@@ -539,7 +518,6 @@ void startCameraServer()
 
     config.server_port += 1;
     config.ctrl_port += 1;
-    log_i("Starting stream server on port: '%d'", config.server_port);
     if (httpd_start(&stream_httpd, &config) == ESP_OK)
     {
         httpd_register_uri_handler(stream_httpd, &stream_uri);

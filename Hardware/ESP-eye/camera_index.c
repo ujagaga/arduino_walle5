@@ -332,19 +332,13 @@ input.toggle-section-button:checked+section.toggle-section {
 <body>
   <section class="main">
     <div id="logo">
-      <label for="nav-toggle-cb" id="nav-toggle">&#9776;&nbsp;&nbsp;Toggle OV2640 settings</label>
+      <label for="nav-toggle-cb" id="nav-toggle">&#9776;&nbsp;&nbsp;Toggle OV2640 settings (800x600)</label>
     </div>
     <div id="content">
       <div id="sidebar">
         <input type="checkbox" id="nav-toggle-cb" checked="checked">
         <nav id="menu">
 
-          <div class="input-group" id="framesize-group">
-            <label for="framesize">Resolution</label>
-              <select id="framesize" class="default-action">              
-                <option value="9">SVGA(800x600)</option>    
-              </select>
-          </div>
           <div class="input-group" id="quality-group">
             <label for="quality">Quality</label>
             <div class="range-min">4</div>
@@ -365,6 +359,14 @@ input.toggle-section-button:checked+section.toggle-section {
             <div class="switch">
             <input id="vflip" type="checkbox" class="default-action" checked="checked">
             <label class="slider" for="vflip"></label>
+            </div>
+          </div>
+
+          <div class="input-group" id="ir-led-group">
+            <label for="ir_led_intensity">IR LED</label>
+            <div class="switch">
+            <input id="ir_led_intensity" type="checkbox" class="default-action" checked="checked">
+            <label class="slider" for="ir_led_intensity"></label>
             </div>
           </div>
 
@@ -537,15 +539,6 @@ document.addEventListener('DOMContentLoaded', function (event) {
     .forEach(el => {
       el.onchange = () => updateConfig(el)
     })
-  
-
-  // framesize
-  const framesize = document.getElementById('framesize')
-
-  framesize.onchange = () => {
-    updateConfig(framesize)   
-  }
-
 })
 </script>
 </body>
