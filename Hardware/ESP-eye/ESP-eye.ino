@@ -3,6 +3,7 @@
 #include "camera_pins.h"
 #include "config.h"
 #include "app_httpd.h"
+#include "IR_ctrl.h"
 
 
 void setup() {
@@ -74,7 +75,7 @@ void setup() {
   setupLedFlash(LED_GPIO_NUM);
 #endif
 
-  setupIrLed(IR_LED_GPIO_NUM);
+  IRCTRL_send(CMD_IR_OFF);
 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);

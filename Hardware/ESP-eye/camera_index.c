@@ -378,6 +378,7 @@ input.toggle-section-button:checked+section.toggle-section {
           </div>
 
           <section id="buttons">
+            <button id="tv-on-off">TV On/Off</button>
             <button id="get-still">Get Still</button>
             <button id="toggle-stream">Start Stream</button>
           </section>
@@ -501,9 +502,19 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
   const view = document.getElementById('stream')
   const viewContainer = document.getElementById('stream-container')
+  const tvOnOffButton = document.getElementById('tv-on-off')
   const stillButton = document.getElementById('get-still')  
   const streamButton = document.getElementById('toggle-stream')
   const ledGroup = document.getElementById('led-group')
+
+  const irRemoteCtrlSend = () => {
+    const query = `${baseHost}/control?var=ir_ctrl&val=2`
+
+    fetch(query)
+      .then(response => {
+        console.log(`request to ${query} finished, status: ${response.status}`)
+      })
+  }
 
   const stopStream = () => {
     window.stop();
@@ -514,9 +525,13 @@ document.addEventListener('DOMContentLoaded', function (event) {
     view.src = `${streamUrl}/stream`
     show(viewContainer)
     streamButton.innerHTML = 'Stop Stream'
-  }
+  }  
 
   // Attach actions to buttons
+  tvOnOffButton.onclick = () => {
+    stopStream()    
+  }
+
   stillButton.onclick = () => {
     stopStream()
     view.src = `${baseHost}/capture?_cb=${Date.now()}`

@@ -3,6 +3,5 @@
 
 void startCameraServer();
 void setupLedFlash(int pin);
-void setupIrLed(int pin);
 
 #endif

@@ -22,6 +22,7 @@
 #include <pgmspace.h> 
 #include <Arduino.h>
 #include "camera_pins.h"
+#include "IR_ctrl.h"
 
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
@@ -305,13 +306,9 @@ static esp_err_t cmd_handler(httpd_req_t *req)
         res = s->set_hmirror(s, val);
     else if (!strcmp(variable, "vflip"))
         res = s->set_vflip(s, val);  
-    else if (!strcmp(variable, "ir_led_intensity")) {
-        if (val > 0){
-          digitalWrite(IR_LED_GPIO_NUM, LOW);
-        }else{          
-          digitalWrite(IR_LED_GPIO_NUM, HIGH);
-        }            
-    }  
+    else if (!strcmp(variable, "ir_ctrl")) {
+        IRCTRL_send(val);                 
+    }    
 #if CONFIG_LED_ILLUMINATOR_ENABLED
     else if (!strcmp(variable, "led_intensity")) {
         led_duty = val;
@@ -528,10 +525,4 @@ void setupLedFlash(int pin)
 {
     ledcSetup(LED_LEDC_CHANNEL, 5000, 8);
     ledcAttachPin(pin, LED_LEDC_CHANNEL);
-}
-
-void setupIrLed(int pin) 
-{
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, HIGH);
 }
