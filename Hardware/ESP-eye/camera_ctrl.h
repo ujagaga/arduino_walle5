@@ -1,5 +1,5 @@
-#ifndef CAM_PINS_H
-#define CAM_PINS_H
+#ifndef CAM_CTRL_H
+#define CAM_CTRL_H
 
 
 #define PWDN_GPIO_NUM     32
@@ -24,5 +24,8 @@
 #define LED_GPIO_NUM       4
 #define IR_LED_GPIO_NUM    33
 
+
+void CAM_init(void);
+void CAM_capture(void);
 
 #endif

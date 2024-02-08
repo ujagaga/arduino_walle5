@@ -1,4 +1,4 @@
-#include "camera_pins.h"
+#include "camera_ctrl.h"
 #include <Arduino.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
@@ -8,13 +8,7 @@ uint16_t rawData_TV_on_off[21] = {890, 874,  1776, 876,  892, 876,  890, 878,  8
 
 
 void IRCTRL_send(int cmd){
-  if(cmd == CMD_IR_OFF){
-    pinMode(IR_LED_GPIO_NUM, OUTPUT);
-    digitalWrite(IR_LED_GPIO_NUM, LOW);
-  }else if(cmd == CMD_IR_ON){
-    pinMode(IR_LED_GPIO_NUM, OUTPUT);
-    digitalWrite(IR_LED_GPIO_NUM, HIGH);
-  }else{
+  if(cmd == IR_TV_ON_OFF){
     IRsend irsend(IR_LED_GPIO_NUM);
     irsend.begin();
     irsend.sendRaw(rawData_TV_on_off, 21, 38); // Send a raw data capture at 38kHz.
