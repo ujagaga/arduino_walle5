@@ -66,13 +66,11 @@ void CAM_init(){
 
 void CAM_capture()
 {
-    camera_fb_t *fb = NULL;
-
-    fb = esp_camera_fb_get();
+    camera_fb_t *fb = esp_camera_fb_get();
     if (fb){
       UART_sendResponse(UCMD_CAM_SNAPSHOT, fb->buf, fb->len);
     }else{
-      UART_sendResponse(UCMD_FAIL, NULL, NULL);
+      UART_sendResponse(UCMD_FAIL, NULL, 0);
     }
 
     esp_camera_fb_return(fb);
