@@ -5,7 +5,10 @@
 #define I2C_SCL               14
 #define TOF_1_IIC_ADDRESS     0x29
 
-bool TOF_init(void);
+
+
+void I2C_devs_init(void);
 uint8_t TOF_get_range(void);
+void GYRO_get_rotation(int16_t* xyz_buffer);
 
 #endif

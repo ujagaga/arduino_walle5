@@ -19,6 +19,8 @@
 #define UCMD_IR_OFF           5
 #define UCMD_TV               6
 #define UCMD_GET_RANGE_FRONT  7
+#define UCMD_GET_RANGE_BACK   8
+#define UCMD_GET_ROTATION     9
 
 int UART_checkCmd(void);
 void UART_sendResponse(int cmd, uint8_t* buf, uint32_t len);

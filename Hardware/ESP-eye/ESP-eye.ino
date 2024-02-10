@@ -1,16 +1,14 @@
 #include "camera_ctrl.h"
 #include "uart_cmd.h"
 #include "IR_ctrl.h"
-#include "tof_range.h"
+#include "i2c_devs.h"
 
 void setup() {  
   Serial.begin(1000000);  
   
   CAM_init();
 
-  if(!TOF_init()){
-    Serial.println("ERROR setting up TOF sensor.");
-  }
+  I2C_devs_init();
 
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, LOW);
@@ -69,6 +67,14 @@ void loop() {
       {
         uint8_t range = TOF_get_range();
         UART_sendResponse(UCMD_GET_RANGE_FRONT, &range, 1);
+      }
+      break;
+
+    case UCMD_GET_ROTATION:
+      {
+        int16_t xyz_buffer[3];
+        GYRO_get_rotation(xyz_buffer);
+        UART_sendResponse(UCMD_GET_ROTATION, (uint8_t*)&xyz_buffer, 6);
       }
       break;
 
