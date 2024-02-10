@@ -1,12 +1,16 @@
 #include "camera_ctrl.h"
 #include "uart_cmd.h"
 #include "IR_ctrl.h"
-
+#include "tof_range.h"
 
 void setup() {  
   Serial.begin(1000000);  
   
   CAM_init();
+
+  if(!TOF_init()){
+    Serial.println("ERROR setting up TOF sensor.");
+  }
 
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, LOW);
@@ -21,19 +25,25 @@ void loop() {
   
   switch(cmd){
     case UCMD_FLASH_ON:
-      digitalWrite(LED_GPIO_NUM, HIGH);      
-      UART_sendResponse(UCMD_FLASH_ON, &response, 1);
+      {
+        digitalWrite(LED_GPIO_NUM, HIGH);      
+        UART_sendResponse(UCMD_FLASH_ON, &response, 1);
+      }
       break;
 
     case UCMD_FLASH_OFF:
-      digitalWrite(LED_GPIO_NUM, LOW);
-      UART_sendResponse(UCMD_FLASH_OFF, &response, 1);
+      {
+        digitalWrite(LED_GPIO_NUM, LOW);
+        UART_sendResponse(UCMD_FLASH_OFF, &response, 1);
+      }
       break;
 
     case UCMD_IR_ON:
-      pinMode(IR_LED_GPIO_NUM, OUTPUT);
-      digitalWrite(LED_GPIO_NUM, HIGH);
-      UART_sendResponse(UCMD_IR_ON, &response, 1);
+      {
+        pinMode(IR_LED_GPIO_NUM, OUTPUT);
+        digitalWrite(LED_GPIO_NUM, HIGH);
+        UART_sendResponse(UCMD_IR_ON, &response, 1);
+      }
       break;
 
     case UCMD_IR_OFF:
@@ -43,17 +53,30 @@ void loop() {
       break;
 
     case UCMD_TV:
-      IRCTRL_send(IR_TV_ON_OFF);
-      UART_sendResponse(UCMD_TV, &response, 1);
+      {
+        IRCTRL_send(IR_TV_ON_OFF);
+        UART_sendResponse(UCMD_TV, &response, 1);
+      }
       break; 
 
     case UCMD_CAM_SNAPSHOT:
-      CAM_capture();
+      {
+        CAM_capture();
+      }
       break; 
 
+    case UCMD_GET_RANGE_FRONT:
+      {
+        uint8_t range = TOF_get_range();
+        UART_sendResponse(UCMD_GET_RANGE_FRONT, &range, 1);
+      }
+      break;
+
     default:
-      response = 1;
-      UART_sendResponse(cmd, &response, 1);
+      {
+        response = 1;
+        UART_sendResponse(cmd, &response, 1);
+      }
       break;
   }
 

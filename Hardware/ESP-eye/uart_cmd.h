@@ -18,6 +18,7 @@
 #define UCMD_IR_ON            4
 #define UCMD_IR_OFF           5
 #define UCMD_TV               6
+#define UCMD_GET_RANGE_FRONT  7
 
 int UART_checkCmd(void);
 void UART_sendResponse(int cmd, uint8_t* buf, uint32_t len);
