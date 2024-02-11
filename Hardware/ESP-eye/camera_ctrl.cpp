@@ -3,6 +3,7 @@
 #include "camera_ctrl.h"
 #include "uart_cmd.h"
 
+esp_err_t err; 
 
 void CAM_init(){
   camera_config_t config;
@@ -25,7 +26,7 @@ void CAM_init(){
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
-  config.frame_size = FRAMESIZE_SVGA;
+  config.frame_size = FRAMESIZE_XGA;
   config.pixel_format = PIXFORMAT_JPEG; // for streaming
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
@@ -45,27 +46,28 @@ void CAM_init(){
   }
   
   // camera init
-  esp_err_t err = esp_camera_init(&config);
+  err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.println("\nERROR");
+    Serial.println("ERROR configuring camera");
+  }else{
+    sensor_t * s = esp_camera_sensor_get();
+    // initial sensors are flipped vertically and colors are a bit saturated
+    if (s->id.PID == OV3660_PID) {
+      s->set_vflip(s, 1); // flip it back
+      s->set_brightness(s, 1); // up the brightness just a bit
+      s->set_saturation(s, -2); // lower the saturation
+    }
+    // drop down frame size for higher initial frame rate
+    if(config.pixel_format == PIXFORMAT_JPEG){
+      s->set_framesize(s, FRAMESIZE_SVGA);
+    }
+    Serial.println("\nOK");
   }
-
-  sensor_t * s = esp_camera_sensor_get();
-  // initial sensors are flipped vertically and colors are a bit saturated
-  if (s->id.PID == OV3660_PID) {
-    s->set_vflip(s, 1); // flip it back
-    s->set_brightness(s, 1); // up the brightness just a bit
-    s->set_saturation(s, -2); // lower the saturation
-  }
-  // drop down frame size for higher initial frame rate
-  if(config.pixel_format == PIXFORMAT_JPEG){
-    s->set_framesize(s, FRAMESIZE_SVGA);
-  }
-  Serial.println("\nOK");
 }
 
 void CAM_capture()
 {
+  if (err == ESP_OK){
     camera_fb_t *fb = esp_camera_fb_get();
     if (fb){
       UART_sendResponse(UCMD_CAM_SNAPSHOT, fb->buf, fb->len);
@@ -74,4 +76,7 @@ void CAM_capture()
     }
 
     esp_camera_fb_return(fb);
+  }else{
+    UART_sendResponse(UCMD_FAIL, NULL, 0);
+  }
 }

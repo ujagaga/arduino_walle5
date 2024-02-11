@@ -2,6 +2,10 @@
 #include "uart_cmd.h"
 #include "IR_ctrl.h"
 #include "i2c_devs.h"
+#include "tof_range.h"
+#include "gyro.h"
+#include "oled.h"
+
 
 void setup() {  
   Serial.begin(1000000);  
@@ -9,6 +13,10 @@ void setup() {
   CAM_init();
 
   I2C_devs_init();
+  TOF_init();
+  GYRO_init();
+  OLED_init();
+  OLED_small_eyes();
 
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, LOW);
@@ -72,7 +80,7 @@ void loop() {
 
     case UCMD_GET_ROTATION:
       {
-        int16_t xyz_buffer[3];
+        int16_t xyz_buffer[3] = {0};
         GYRO_get_rotation(xyz_buffer);
         UART_sendResponse(UCMD_GET_ROTATION, (uint8_t*)&xyz_buffer, 6);
       }
