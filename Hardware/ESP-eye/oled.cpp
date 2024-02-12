@@ -1,411 +1,303 @@
 #include <Arduino.h>
 #include "oled.h"
+#include "i2c_devs.h"
 
 /* Using SH1106 OLED display at 0x3C*/
 
-#define OLED_address      0x3c
+#define OLED_ADDRESS      0x3c
 #define OLED_WIDTH        128
 #define OLED_HEIGHT       64
 #define OLED_ROW_COUNT    8
 #define OLED_BUFFER_SIZE (OLED_WIDTH * OLED_ROW_COUNT)
+#define OFFSET            2
 
-#define SSD1306_COLUMNADDR 0x21
-#define SSD1306_PAGEADDR   0x22
-#define SSD1306_SETCONTRAST 0x81
+#define WIRE_MAX          16
 
-#define WIRE_MAX          32
-
-int16_t window_x1, ///< Dirty tracking window minimum x
-      window_y1,     ///< Dirty tracking window minimum y
-      window_x2,     ///< Dirty tracking window maximum x
-      window_y2;     ///< Dirty tracking window maximum y
-uint8_t _page_start_offset = 0;
-
-#ifndef _swap_int16_t
-#define _swap_int16_t(a, b)                                                    \
-  {                                                                            \
-    int16_t t = a;                                                             \
-    a = b;                                                                     \
-    b = t;                                                                     \
-  }
-#endif
+// Small 8x8 font
+static const char myFont[][8] PROGMEM = {  
+{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x00,0x5F,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x00,0x07,0x00,0x07,0x00,0x00,0x00},
+{0x00,0x14,0x7F,0x14,0x7F,0x14,0x00,0x00},
+{0x00,0x24,0x2A,0x7F,0x2A,0x12,0x00,0x00},
+{0x00,0x23,0x13,0x08,0x64,0x62,0x00,0x00},
+{0x00,0x36,0x49,0x55,0x22,0x50,0x00,0x00},
+{0x00,0x00,0x05,0x03,0x00,0x00,0x00,0x00},
+{0x00,0x1C,0x22,0x41,0x00,0x00,0x00,0x00},
+{0x00,0x41,0x22,0x1C,0x00,0x00,0x00,0x00},
+{0x00,0x08,0x2A,0x1C,0x2A,0x08,0x00,0x00},
+{0x00,0x08,0x08,0x3E,0x08,0x08,0x00,0x00},
+{0x00,0xA0,0x60,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x08,0x08,0x08,0x08,0x08,0x00,0x00},
+{0x00,0x60,0x60,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x20,0x10,0x08,0x04,0x02,0x00,0x00},
+{0x00,0x3E,0x51,0x49,0x45,0x3E,0x00,0x00},
+{0x00,0x00,0x42,0x7F,0x40,0x00,0x00,0x00},
+{0x00,0x62,0x51,0x49,0x49,0x46,0x00,0x00},
+{0x00,0x22,0x41,0x49,0x49,0x36,0x00,0x00},
+{0x00,0x18,0x14,0x12,0x7F,0x10,0x00,0x00},
+{0x00,0x27,0x45,0x45,0x45,0x39,0x00,0x00},
+{0x00,0x3C,0x4A,0x49,0x49,0x30,0x00,0x00},
+{0x00,0x01,0x71,0x09,0x05,0x03,0x00,0x00},
+{0x00,0x36,0x49,0x49,0x49,0x36,0x00,0x00},
+{0x00,0x06,0x49,0x49,0x29,0x1E,0x00,0x00},
+{0x00,0x00,0x36,0x36,0x00,0x00,0x00,0x00},
+{0x00,0x00,0xAC,0x6C,0x00,0x00,0x00,0x00},
+{0x00,0x08,0x14,0x22,0x41,0x00,0x00,0x00},
+{0x00,0x14,0x14,0x14,0x14,0x14,0x00,0x00},
+{0x00,0x41,0x22,0x14,0x08,0x00,0x00,0x00},
+{0x00,0x02,0x01,0x51,0x09,0x06,0x00,0x00},
+{0x00,0x32,0x49,0x79,0x41,0x3E,0x00,0x00},
+{0x00,0x7E,0x09,0x09,0x09,0x7E,0x00,0x00},
+{0x00,0x7F,0x49,0x49,0x49,0x36,0x00,0x00},
+{0x00,0x3E,0x41,0x41,0x41,0x22,0x00,0x00},
+{0x00,0x7F,0x41,0x41,0x22,0x1C,0x00,0x00},
+{0x00,0x7F,0x49,0x49,0x49,0x41,0x00,0x00},
+{0x00,0x7F,0x09,0x09,0x09,0x01,0x00,0x00},
+{0x00,0x3E,0x41,0x41,0x51,0x72,0x00,0x00},
+{0x00,0x7F,0x08,0x08,0x08,0x7F,0x00,0x00},
+{0x00,0x41,0x7F,0x41,0x00,0x00,0x00,0x00},
+{0x00,0x20,0x40,0x41,0x3F,0x01,0x00,0x00},
+{0x00,0x7F,0x08,0x14,0x22,0x41,0x00,0x00},
+{0x00,0x7F,0x40,0x40,0x40,0x40,0x00,0x00},
+{0x00,0x7F,0x02,0x0C,0x02,0x7F,0x00,0x00},
+{0x00,0x7F,0x04,0x08,0x10,0x7F,0x00,0x00},
+{0x00,0x3E,0x41,0x41,0x41,0x3E,0x00,0x00},
+{0x00,0x7F,0x09,0x09,0x09,0x06,0x00,0x00},
+{0x00,0x3E,0x41,0x51,0x21,0x5E,0x00,0x00},
+{0x00,0x7F,0x09,0x19,0x29,0x46,0x00,0x00},
+{0x00,0x26,0x49,0x49,0x49,0x32,0x00,0x00},
+{0x00,0x01,0x01,0x7F,0x01,0x01,0x00,0x00},
+{0x00,0x3F,0x40,0x40,0x40,0x3F,0x00,0x00},
+{0x00,0x1F,0x20,0x40,0x20,0x1F,0x00,0x00},
+{0x00,0x3F,0x40,0x38,0x40,0x3F,0x00,0x00},
+{0x00,0x63,0x14,0x08,0x14,0x63,0x00,0x00},
+{0x00,0x03,0x04,0x78,0x04,0x03,0x00,0x00},
+{0x00,0x61,0x51,0x49,0x45,0x43,0x00,0x00},
+{0x00,0x7F,0x41,0x41,0x00,0x00,0x00,0x00},
+{0x00,0x02,0x04,0x08,0x10,0x20,0x00,0x00},
+{0x00,0x41,0x41,0x7F,0x00,0x00,0x00,0x00},
+{0x00,0x04,0x02,0x01,0x02,0x04,0x00,0x00},
+{0x00,0x80,0x80,0x80,0x80,0x80,0x00,0x00},
+{0x00,0x01,0x02,0x04,0x00,0x00,0x00,0x00},
+{0x00,0x20,0x54,0x54,0x54,0x78,0x00,0x00},
+{0x00,0x7F,0x48,0x44,0x44,0x38,0x00,0x00},
+{0x00,0x38,0x44,0x44,0x28,0x00,0x00,0x00},
+{0x00,0x38,0x44,0x44,0x48,0x7F,0x00,0x00},
+{0x00,0x38,0x54,0x54,0x54,0x18,0x00,0x00},
+{0x00,0x08,0x7E,0x09,0x02,0x00,0x00,0x00},
+{0x00,0x18,0xA4,0xA4,0xA4,0x7C,0x00,0x00},
+{0x00,0x7F,0x08,0x04,0x04,0x78,0x00,0x00},
+{0x00,0x00,0x7D,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x80,0x84,0x7D,0x00,0x00,0x00,0x00},
+{0x00,0x7F,0x10,0x28,0x44,0x00,0x00,0x00},
+{0x00,0x41,0x7F,0x40,0x00,0x00,0x00,0x00},
+{0x00,0x7C,0x04,0x18,0x04,0x78,0x00,0x00},
+{0x00,0x7C,0x08,0x04,0x7C,0x00,0x00,0x00},
+{0x00,0x38,0x44,0x44,0x38,0x00,0x00,0x00},
+{0x00,0xFC,0x24,0x24,0x18,0x00,0x00,0x00},
+{0x00,0x18,0x24,0x24,0xFC,0x00,0x00,0x00},
+{0x00,0x00,0x7C,0x08,0x04,0x00,0x00,0x00},
+{0x00,0x48,0x54,0x54,0x24,0x00,0x00,0x00},
+{0x00,0x04,0x7F,0x44,0x00,0x00,0x00,0x00},
+{0x00,0x3C,0x40,0x40,0x7C,0x00,0x00,0x00},
+{0x00,0x1C,0x20,0x40,0x20,0x1C,0x00,0x00},
+{0x00,0x3C,0x40,0x30,0x40,0x3C,0x00,0x00},
+{0x00,0x44,0x28,0x10,0x28,0x44,0x00,0x00},
+{0x00,0x1C,0xA0,0xA0,0x7C,0x00,0x00,0x00},
+{0x00,0x44,0x64,0x54,0x4C,0x44,0x00,0x00},
+{0x00,0x08,0x36,0x41,0x00,0x00,0x00,0x00},
+{0x00,0x00,0x7F,0x00,0x00,0x00,0x00,0x00},
+{0x00,0x41,0x36,0x08,0x00,0x00,0x00,0x00},
+{0x00,0x02,0x01,0x01,0x02,0x01,0x00,0x00},
+{0x00,0x02,0x05,0x05,0x02,0x00,0x00,0x00} 
+};
 
 uint8_t buffer[OLED_BUFFER_SIZE] = {0};
-uint8_t cursor_x = 0;
-uint8_t cursor_y = 0;
-static bool init_ok = true;
+
  
-
-static void sendcommand(unsigned char com)
+//==========================================================//
+// Actually this sends a byte, not a char to draw in the display. 
+// Display's chars uses 8 byte font the small ones and 96 bytes
+// for the big number font.
+static void sendChar(unsigned char data) 
 {
-  I2CWire.beginTransmission(OLED_address);     
-  I2CWire.write(0x80);                          //command mode
-  I2CWire.write(com);
-  uint8_t error = I2CWire.endTransmission();    
-  if (error != 0){
-    init_ok = false;
-  }
-}
-
-static void sendData(unsigned char* data, uint8_t data_len) 
-{
+  //if (interrupt && !doing_menu) return;   // Stop printing only if interrupt is call but not in button functions
   
-  I2CWire.beginTransmission(OLED_address); // begin transmitting
+  I2CWire.beginTransmission(OLED_ADDRESS); // begin transmitting
   I2CWire.write(0x40);//data mode
-  I2CWire.write(data, data_len);
+  I2CWire.write(data);
   I2CWire.endTransmission();    // stop transmitting
 }
 
-static void setXY(uint8_t row, uint16_t col)
+
+//==========================================================//
+// Used to send commands to the display.
+static void sendCommand(unsigned char com)
 {
-  
-  sendcommand(0xb0+row);                //set page address
-  sendcommand(8*col&0x0f);       //set low col address
-  sendcommand(0x10+((8*col>>4)&0x0f));  //set high col address
-  // sendcommand(0x21);      // Set column command
-  // sendcommand(0);         // Start column
-  // sendcommand(OLED_WIDTH);// End column
-
-  // sendcommand(0x22);            // Set page command
-  // sendcommand(row);             // Start page
-  // sendcommand(OLED_ROW_COUNT-1);// End page
-}
-
-static void writePixel(int16_t x, int16_t y, uint16_t color) {
-  // uint16_t idx = x*OLED_ROW_COUNT + (y / 8);
-  // uint8_t bit = y % 8;
-
-  // if(c) {
-  //   buffer[idx] |= (1 << bit);
-  // } else {
-  //   buffer[idx] &= ~(1 << bit);
-  // }
-  if ((x >= 0) && (x < OLED_WIDTH) && (y >= 0) && (y < OLED_HEIGHT)) { 
-    // adjust dirty window
-    window_x1 = min(window_x1, x);
-    window_y1 = min(window_y1, y);
-    window_x2 = max(window_x2, x);
-    window_y2 = max(window_y2, y);
-
-    if(color) {
-      buffer[x + (y / 8) * OLED_WIDTH] |= (1 << (y & 7));
-    }else{
-      buffer[x + (y / 8) * OLED_WIDTH] &= ~(1 << (y & 7));
-    } 
-  }
-}
-
-// static void writeLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1,uint8_t color) {
-
-//   int16_t steep = abs(y1 - y0) > abs(x1 - x0);
-//   if (steep) {
-//     _swap_int16_t(x0, y0);
-//     _swap_int16_t(x1, y1);
-//   }
-
-//   if (x0 > x1) {
-//     _swap_int16_t(x0, x1);
-//     _swap_int16_t(y0, y1);
-//   }
-
-//   int16_t dx, dy;
-//   dx = x1 - x0;
-//   dy = abs(y1 - y0);
-
-//   int16_t err = dx / 2;
-//   int16_t ystep;
-
-//   if (y0 < y1) {
-//     ystep = 1;
-//   } else {
-//     ystep = -1;
-//   }
-
-//   for (; x0 <= x1; x0++) {
-//     if (steep) {
-//       writePixel(y0, x0, color);
-//     } else {
-//       writePixel(x0, y0, color);
-//     }
-//     err -= dy;
-//     if (err < 0) {
-//       y0 += ystep;
-//       err += dx;
-//     }
-//   }
-// }
-
-// static void writeFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color) { 
-//   writeLine(x, y, x, y + h - 1, color);
-// }
-
-// static void writeFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color) {  
-//   writeLine(x, y, x + w - 1, y, color);
-// }
-
-// static void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color) {
-//   for (int16_t i = x; i < x + w; i++) {
-//     writeFastVLine(i, y, h, color);
-//   }
-// }
-
-// static void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint8_t color) {
-//   // Update in subclasses if desired!
-//   if (x0 == x1) {
-//     if (y0 > y1)
-//       _swap_int16_t(y0, y1);      
-//     writeFastVLine(x0, y0, y1 - y0 + 1, color);
-//   } else if (y0 == y1) {
-//     if (x0 > x1)
-//       _swap_int16_t(x0, x1);
-//     writeFastHLine(x0, y0, x1 - x0 + 1, color);
-//   } else {
-//     writeLine(x0, y0, x1, y1, color);
-//   }
-// }
-
-// static void drawCircle(int16_t x0, int16_t y0, int16_t r, uint8_t color) {
-//   int16_t f = 1 - r;
-//   int16_t ddF_x = 1;
-//   int16_t ddF_y = -2 * r;
-//   int16_t x = 0;
-//   int16_t y = r;
-
-//   writePixel(x0, y0 + r, color);
-//   writePixel(x0, y0 - r, color);
-//   writePixel(x0 + r, y0, color);
-//   writePixel(x0 - r, y0, color);
-
-//   while (x < y) {
-//     if (f >= 0) {
-//       y--;
-//       ddF_y += 2;
-//       f += ddF_y;
-//     }
-//     x++;
-//     ddF_x += 2;
-//     f += ddF_x;
-
-//     writePixel(x0 + x, y0 + y, color);
-//     writePixel(x0 - x, y0 + y, color);
-//     writePixel(x0 + x, y0 - y, color);
-//     writePixel(x0 - x, y0 - y, color);
-//     writePixel(x0 + y, y0 + x, color);
-//     writePixel(x0 - y, y0 + x, color);
-//     writePixel(x0 + y, y0 - x, color);
-//     writePixel(x0 - y, y0 - x, color);
-//   }
-// }
-
-// static void fillCircleHelper(int16_t x0, int16_t y0, int16_t r, uint8_t corners, int16_t delta, uint8_t color) {
-
-//   int16_t f = 1 - r;
-//   int16_t ddF_x = 1;
-//   int16_t ddF_y = -2 * r;
-//   int16_t x = 0;
-//   int16_t y = r;
-//   int16_t px = x;
-//   int16_t py = y;
-
-//   delta++; // Avoid some +1's in the loop
-
-//   while (x < y) {
-//     if (f >= 0) {
-//       y--;
-//       ddF_y += 2;
-//       f += ddF_y;
-//     }
-//     x++;
-//     ddF_x += 2;
-//     f += ddF_x;
-//     // These checks avoid double-drawing certain lines, important
-//     // for the SSD1306 library which has an INVERT drawing mode.
-//     if (x < (y + 1)) {
-//       if (corners & 1)
-//         writeFastVLine(x0 + x, y0 - y, 2 * y + delta, color);
-//       if (corners & 2)
-//         writeFastVLine(x0 - x, y0 - y, 2 * y + delta, color);
-//     }
-//     if (y != py) {
-//       if (corners & 1)
-//         writeFastVLine(x0 + py, y0 - px, 2 * px + delta, color);
-//       if (corners & 2)
-//         writeFastVLine(x0 - py, y0 - px, 2 * px + delta, color);
-//       py = y;
-//     }
-//     px = x;
-//   }
-// }
-
-// static void fillCircle(int16_t x0, int16_t y0, int16_t r, uint8_t color) {
-//   writeFastVLine(x0, y0 - r, 2 * r + 1, color);
-//   fillCircleHelper(x0, y0, r, 3, 0, color);
-// }
-
-// static void fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint8_t color) {
-//   int16_t max_radius = ((w < h) ? w : h) / 2; // 1/2 minor axis
-//   if (r > max_radius)
-//     r = max_radius;
-
-//   fillRect(x + r, y, w - 2 * r, h, color);
-//   // draw four corners
-//   fillCircleHelper(x + w - r - 1, y + r, r, 1, h - 2 * r - 1, color);
-//   fillCircleHelper(x + r, y + r, r, 2, h - 2 * r - 1, color);
-// }
-
-
-void OLED_display() { 
-  int row, x, i;
-  for(row = 0; row < OLED_ROW_COUNT; ++row)
-  {	
-    setXY(row,0);    
-    {
-      for(x=0;x<128; x+=16)  
-      {
-          sendData(buffer[row*x + x + i*16], 16);
-      }
-    }
-  }
-
-  // yield();
-  // uint8_t *ptr = buffer;
-  // uint8_t dc_byte = 0x40;
-  // uint8_t pages = OLED_HEIGHT / 8;
-  // uint8_t bytes_per_page = OLED_WIDTH;
-
-  // uint8_t first_page = window_y1 / 8;
-  // uint8_t page_start = min(bytes_per_page, (uint8_t)window_x1);
-  // uint8_t page_end = (uint8_t)max((int)0, (int)window_x2);
-
-  // for (uint8_t p = first_page; p < pages; p++) {
-  //   uint8_t bytes_remaining = bytes_per_page;
-  //   ptr = buffer + (uint16_t)p * (uint16_t)bytes_per_page;
-  //   // fast forward to dirty rectangle beginning
-  //   ptr += page_start;
-  //   bytes_remaining -= page_start;
-  //   // cut off end of dirty rectangle
-  //   bytes_remaining -= (OLED_WIDTH - 1) - page_end;
-
-  //   uint16_t maxbuff = 16;
-
-  //   uint8_t cmd[] = {
-  //       0x00, (uint8_t)(SH110X_SETPAGEADDR + p),
-  //       (uint8_t)(0x10 + ((page_start + _page_start_offset) >> 4)),
-  //       (uint8_t)((page_start + _page_start_offset) & 0xF)};
-
-  //   I2CWire.write(cmd, 4);
-
-  //   while (bytes_remaining) {
-  //     uint8_t to_write = min(bytes_remaining, (uint8_t)maxbuff);
-  //     I2CWire.write(ptr, to_write);
-  //     ptr += to_write;
-  //     bytes_remaining -= to_write;
-  //   }
-  // }
-  // // reset dirty window
-  // window_x1 = 1024;
-  // window_y1 = 1024;
-  // window_x2 = -1;
-  // window_y2 = -1;
-  // yield();
+  I2CWire.beginTransmission(OLED_ADDRESS);     //begin transmitting
+  I2CWire.write(0x80);                          //command mode
+  I2CWire.write(com);
+  I2CWire.endTransmission();                    // stop transmitting
 }
 
 //==========================================================//
-// Resets display depending on the actual mode.
-void OLED_resetDisplay(void)
+// Set the cursor position in a 16 COL * 8 ROW map.
+static void setXY(unsigned char row,unsigned char col)
 {
-  OLED_displayOff();
-  OLED_clearDisplay();
-  OLED_display();
-  OLED_displayOn();
+  sendCommand(0xb0+row);                //set page address
+  sendCommand(OFFSET+(8*col&0x0f));       //set low col address
+  sendCommand(0x10+((8*col>>4)&0x0f));  //set high col address
+}
+
+//==========================================================//
+// Prints a display char (not just a byte) in coordinates X Y,
+// being multiples of 8. This means we have 16 COLS (0-15) 
+// and 8 ROWS (0-7).
+static void sendCharXY(unsigned char data, int X, int Y)
+{
+  setXY(X, Y);
+  I2CWire.beginTransmission(OLED_ADDRESS); // begin transmitting
+  I2CWire.write(0x40);//data mode
+  
+  for(int i=0;i<8;i++)          
+    I2CWire.write(pgm_read_byte(myFont[data-0x20]+i));
+    
+  I2CWire.endTransmission();    // stop transmitting
 }
 
 //==========================================================//
 // Turns display on.
 void OLED_displayOn(void)
 {
-  sendcommand(0xaf);        //display on
+  sendCommand(0xaf);        //display on
 }
 
 //==========================================================//
 // Turns display off.
 void OLED_displayOff(void)
 {
-  sendcommand(0xae);    //display off
+  sendCommand(0xae);		//display off
 }
 
 //==========================================================//
 // Clears the display by sendind 0 to all the screen map.
 void OLED_clearDisplay(void)
 {
-  memset(buffer, 0, OLED_BUFFER_SIZE);
-  window_x1 = 0;
-  window_y1 = 0;
-  window_x2 = OLED_WIDTH - 1;
-  window_y2 = OLED_HEIGHT - 1;
+  unsigned char i,k;
+  for(k=0;k<8;k++)
+  {	
+    setXY(k,0);    
+    {
+      for(i=0;i<(128 + 2 * OFFSET);i++)     //locate all COL
+      {
+        sendChar(0);         //clear all COL
+        //delay(10);
+      }
+    }
+  }
 }
 
-void OLED_FillDisplay(void)
+//==========================================================//
+// Resets display depending on the actual mode.
+static void resetDisplay(void)
 {
-  memset(buffer, 0xff, OLED_BUFFER_SIZE);
+  OLED_displayOff();
+  OLED_clearDisplay();
+  OLED_displayOn();
 }
+
+
+//==========================================================//
+// Prints a string in coordinates X Y, being multiples of 8.
+// This means we have 16 COLS (0-15) and 8 ROWS (0-7).
+void sendStrXY( const char *string, int X, int Y)
+{
+  setXY(X,Y);
+  unsigned char i=0;
+  while(*string)
+  {
+    for(i=0;i<8;i++)
+    {
+      sendChar(pgm_read_byte(myFont[*string-0x20]+i));
+    }
+    *string++;
+  }
+}
+
 
 //==========================================================//
 // Inits oled and draws logo at startup
 void OLED_init(void)
 {
-  memset(buffer, 0, OLED_BUFFER_SIZE); 
+  sendCommand(0xae);		//display off
+  sendCommand(0xa6);            //Set Normal Display (default)
+  // Adafruit Init sequence for 128x64 OLED module
+  sendCommand(0xAE);             //DISPLAYOFF
+  sendCommand(0xD5);            //SETDISPLAYCLOCKDIV
+  sendCommand(0x80);            // the suggested ratio 0x80
+  sendCommand(0xA8);            //SSD1306_SETMULTIPLEX
+  sendCommand(0x3F);
+  sendCommand(0xD3);            //SETDISPLAYOFFSET
+  sendCommand(0x0);             //no offset
+  sendCommand(0x40 | 0x0);      //SETSTARTLINE
+  sendCommand(0x8D);            //CHARGEPUMP
+  sendCommand(0x14);
+  sendCommand(0x20);             //MEMORYMODE
+  sendCommand(0x00);             //0x0 act like ks0108
   
-  sendcommand(0xae);		//display off
-  if (init_ok){
-    sendcommand(0xd5);
-    sendcommand(0x80);
-    sendcommand(0xa8);
-    sendcommand(0x3f);
-    sendcommand(0xd3);
-    sendcommand(0x00);
-    sendcommand(0x40);  
-    sendcommand(0xad);
-    sendcommand(0x8b);
-    sendcommand(0xA1);
-    sendcommand(0xC8);
-    sendcommand(0xDA);
-    sendcommand(0x12);
-    sendcommand(0x81);
-    sendcommand(0xff);
-    sendcommand(0xD9);
-    sendcommand(0x1F);
-    sendcommand(0xDB);
-    sendcommand(0x40);
-    sendcommand(0x33);
-    sendcommand(0xA6);
-    sendcommand(0x20);
-    sendcommand(0x10);
-    sendcommand(0xa4);
-  }  
+  //sendcommand(0xA0 | 0x1);      //SEGREMAP   //Rotate screen 180 deg
+  sendCommand(0xA0);
+  
+  //sendcommand(0xC8);            //COMSCANDEC  Rotate screen 180 Deg
+  sendCommand(0xC0);
+  
+  sendCommand(0xDA);            //0xDA
+  sendCommand(0x12);           //COMSCANDEC
+  sendCommand(0x81);           //SETCONTRAS
+  sendCommand(0xCF);           //
+  sendCommand(0xd9);          //SETPRECHARGE 
+  sendCommand(0xF1); 
+  sendCommand(0xDB);        //SETVCOMDETECT                
+  sendCommand(0x40);
+  sendCommand(0xA4);        //DISPLAYALLON_RESUME        
+  sendCommand(0xA6);        //NORMALDISPLAY             
 
-  delay(100); 
-
-  OLED_displayOn();
-
-  if (init_ok){
-    Serial.println("OLED display setup done.");
-  }else{    
-    Serial.println("ERROR setting up OLED display.");
-  } 
- 
+  OLED_clearDisplay();
+  sendCommand(0x2e);            // stop scroll
+  //----------------------------REVERSE comments----------------------------//
+  sendCommand(0xa0);		//seg re-map 0->127(default)
+  sendCommand(0xa1);		//seg re-map 127->0
+  sendCommand(0xc8);
+  delay(1000);
+  //----------------------------REVERSE comments----------------------------//
+  // sendcommand(0xa7);  //Set Inverse Display  
+  // sendcommand(0xae);		//display off
+  sendCommand(0x20);            //Set Memory Addressing Mode
+  sendCommand(0x00);            //Set Memory Addressing Mode ab Horizontal addressing mode
+  //  sendcommand(0x02);         // Set Memory Addressing Mode ab Page addressing mode(RESET) 
+  resetDisplay(); 
 }
 
+
+//==========================================================//
+
+void OLED_print(char *s, uint8_t r, uint8_t c) {
+	sendStrXY(s, r, c);
+}
+
+
 void OLED_small_eyes(){
-  memset(buffer, 0, OLED_BUFFER_SIZE); 
-  OLED_displayOff(); 
+  // memset(buffer, 1, OLED_BUFFER_SIZE); 
+  // OLED_displayOff(); 
 
-  
-  // setXY(0, 0);  
-  // for(uint8_t idx = 0; idx < 128; ++idx){
-  //   sendData(127-idx);
-  // }
+  // sendCharXY('A', 0, 0);
+  // sendCharXY('B', 1, 0);
+  // sendCharXY('C', 0, 1);
+  // // OLED_displeay();
+  // OLED_displayOn();
 
-  OLED_display();
-  OLED_displayOn();
+  OLED_init();
+  OLED_print("Hello World", 0, 0);
+
 }
