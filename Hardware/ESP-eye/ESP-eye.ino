@@ -15,7 +15,7 @@ void setup() {
   I2C_devs_init();
   TOF_init();
   GYRO_init();
-  // OLED_init();
+  OLED_init();
   OLED_small_eyes();
 
   pinMode(LED_GPIO_NUM, OUTPUT);

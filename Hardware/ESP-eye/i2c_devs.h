@@ -3,8 +3,8 @@
 
 #include <Wire.h>
 
-#define I2C_SDA               21//15
-#define I2C_SCL               22//14
+#define I2C_SDA               15
+#define I2C_SCL               14
 
 extern TwoWire I2CWire;
 

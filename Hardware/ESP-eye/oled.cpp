@@ -117,10 +117,9 @@ uint8_t buffer[OLED_BUFFER_SIZE] = {0};
 
  
 //==========================================================//
-// Actually this sends a byte, not a char to draw in the display. 
 // Display's chars uses 8 byte font the small ones and 96 bytes
 // for the big number font.
-static void sendChar(unsigned char data) 
+static void sendByte(unsigned char data) 
 {
   //if (interrupt && !doing_menu) return;   // Stop printing only if interrupt is call but not in button functions
   
@@ -191,8 +190,7 @@ void OLED_clearDisplay(void)
     {
       for(i=0;i<(128 + 2 * OFFSET);i++)     //locate all COL
       {
-        sendChar(0);         //clear all COL
-        //delay(10);
+        sendByte(0);         //clear all COL
       }
     }
   }
@@ -219,17 +217,29 @@ void sendStrXY( const char *string, int X, int Y)
   {
     for(i=0;i<8;i++)
     {
-      sendChar(pgm_read_byte(myFont[*string-0x20]+i));
+      sendByte(pgm_read_byte(myFont[*string-0x20]+i));
     }
     *string++;
   }
 }
 
 
-//==========================================================//
-// Inits oled and draws logo at startup
-void OLED_init(void)
+void OLED_display()
 {
+  int data_count = 0;
+
+  for(int r=0; r < OLED_ROW_COUNT; ++r){
+    setXY(r, 0);
+    for(int c=0; c < OLED_WIDTH; ++c){
+      int idx = r*OLED_WIDTH + c;
+      sendByte(buffer[idx]);
+    }
+  }
+}
+
+void OLED_init()
+{
+  memset(buffer, 0, OLED_BUFFER_SIZE); 
   sendCommand(0xae);		//display off
   sendCommand(0xa6);            //Set Normal Display (default)
   // Adafruit Init sequence for 128x64 OLED module
@@ -282,22 +292,23 @@ void OLED_init(void)
 
 //==========================================================//
 
-void OLED_print(char *s, uint8_t r, uint8_t c) {
-	sendStrXY(s, r, c);
+void OLED_print(char* string, uint8_t row, uint8_t column) {
+	sendStrXY(string, row, column);
 }
 
 
 void OLED_small_eyes(){
-  // memset(buffer, 1, OLED_BUFFER_SIZE); 
-  // OLED_displayOff(); 
-
-  // sendCharXY('A', 0, 0);
-  // sendCharXY('B', 1, 0);
-  // sendCharXY('C', 0, 1);
-  // // OLED_displeay();
-  // OLED_displayOn();
-
-  OLED_init();
-  OLED_print("Hello World", 0, 0);
-
+  
+  OLED_displayOff(); 
+  buffer[0] = 0xff;
+  buffer[1] = 0x0f;
+  buffer[2] = 0x01;
+  buffer[128] = 04;
+  buffer[129] = 16;
+  buffer[130] = 32;
+  
+  OLED_display();
+  
+  // OLED_print("Hello World", 0, 0);
+  OLED_displayOn();
 }
