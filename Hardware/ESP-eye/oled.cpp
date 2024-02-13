@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "oled.h"
-#include "i2c_devs.h"
+#include "config.h"
 
 /* Using SH1106 OLED display at 0x3C*/
 
@@ -11,9 +11,7 @@
 #define OLED_BUFFER_SIZE (OLED_WIDTH * OLED_ROW_COUNT)
 #define OFFSET            2
 
-#define WIRE_MAX          16
-
-// Small 8x8 font
+// Small 8x8 font. Total ASCII count 96. 
 static const char myFont[][8] PROGMEM = {  
 {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
 {0x00,0x00,0x5F,0x00,0x00,0x00,0x00,0x00},
@@ -113,6 +111,7 @@ static const char myFont[][8] PROGMEM = {
 {0x00,0x02,0x05,0x05,0x02,0x00,0x00,0x00} 
 };
 
+
 uint8_t buffer[OLED_BUFFER_SIZE] = {0};
 
  
@@ -149,81 +148,57 @@ static void setXY(unsigned char row,unsigned char col)
   sendCommand(0x10+((8*col>>4)&0x0f));  //set high col address
 }
 
-//==========================================================//
-// Prints a display char (not just a byte) in coordinates X Y,
-// being multiples of 8. This means we have 16 COLS (0-15) 
-// and 8 ROWS (0-7).
-static void sendCharXY(unsigned char data, int X, int Y)
-{
-  setXY(X, Y);
-  I2CWire.beginTransmission(OLED_ADDRESS); // begin transmitting
-  I2CWire.write(0x40);//data mode
-  
-  for(int i=0;i<8;i++)          
-    I2CWire.write(pgm_read_byte(myFont[data-0x20]+i));
-    
-  I2CWire.endTransmission();    // stop transmitting
-}
-
-//==========================================================//
-// Turns display on.
-void OLED_displayOn(void)
-{
-  sendCommand(0xaf);        //display on
-}
-
-//==========================================================//
-// Turns display off.
 void OLED_displayOff(void)
 {
   sendCommand(0xae);		//display off
 }
 
-//==========================================================//
-// Clears the display by sendind 0 to all the screen map.
-void OLED_clearDisplay(void)
+void OLED_displayOn(void)
 {
-  unsigned char i,k;
-  for(k=0;k<8;k++)
-  {	
-    setXY(k,0);    
-    {
-      for(i=0;i<(128 + 2 * OFFSET);i++)     //locate all COL
-      {
-        sendByte(0);         //clear all COL
-      }
-    }
+  sendCommand(0xaf);        //display on
+}
+
+static void writeCharXY(unsigned char data, int X, int row){
+  int idx = row * OLED_WIDTH + X*8;
+  for(int i=0;i<8;i++){
+    buffer[idx + i] = pgm_read_byte(myFont[data-0x20]+i);
   }
 }
 
-//==========================================================//
-// Resets display depending on the actual mode.
-static void resetDisplay(void)
+void OLED_clear(void)
 {
-  OLED_displayOff();
-  OLED_clearDisplay();
-  OLED_displayOn();
+  memset(buffer, 0, OLED_BUFFER_SIZE); 
 }
 
 
-//==========================================================//
-// Prints a string in coordinates X Y, being multiples of 8.
-// This means we have 16 COLS (0-15) and 8 ROWS (0-7).
-void sendStrXY( const char *string, int X, int Y)
+static void writeStrXY( const char *string, int X, int row)
 {
-  setXY(X,Y);
-  unsigned char i=0;
+  int idx = row * OLED_WIDTH + X*8;
   while(*string)
   {
-    for(i=0;i<8;i++)
+    for(int i=0;i<8;i++)
     {
-      sendByte(pgm_read_byte(myFont[*string-0x20]+i));
+      buffer[idx + i] = pgm_read_byte(myFont[*string-0x20]+i);
     }
     *string++;
+    idx += 8;
   }
 }
 
+// static void testFont(){
+//   int idx = 0;
+//   for(int c = 0; c < 96; ++c){
+//     for(int i=0;i<8;i++){
+//       buffer[idx + i] = pgm_read_byte(myFont[c]+i);
+//     }
+//     idx+=8;
 
+//   }
+// }
+
+/* Each drawing command simply modifies the software buffer. This is the routine to run to write the data to the buffer.
+*
+*/
 void OLED_display()
 {
   int data_count = 0;
@@ -237,9 +212,20 @@ void OLED_display()
   }
 }
 
+static void resetDisplay(void)
+{
+  OLED_displayOff();
+  OLED_clear();       // Clear software buffer
+  OLED_display();     // Send buffer data to OLED
+  OLED_displayOn();
+}
+
+void OLED_print(char* string, uint8_t row, uint8_t column) {
+	writeStrXY(string, row, column);  
+}
+
 void OLED_init()
 {
-  memset(buffer, 0, OLED_BUFFER_SIZE); 
   sendCommand(0xae);		//display off
   sendCommand(0xa6);            //Set Normal Display (default)
   // Adafruit Init sequence for 128x64 OLED module
@@ -272,8 +258,7 @@ void OLED_init()
   sendCommand(0x40);
   sendCommand(0xA4);        //DISPLAYALLON_RESUME        
   sendCommand(0xA6);        //NORMALDISPLAY             
-
-  OLED_clearDisplay();
+  
   sendCommand(0x2e);            // stop scroll
   //----------------------------REVERSE comments----------------------------//
   sendCommand(0xa0);		//seg re-map 0->127(default)
@@ -289,26 +274,13 @@ void OLED_init()
   resetDisplay(); 
 }
 
-
-//==========================================================//
-
-void OLED_print(char* string, uint8_t row, uint8_t column) {
-	sendStrXY(string, row, column);
-}
-
-
 void OLED_small_eyes(){
   
   OLED_displayOff(); 
-  buffer[0] = 0xff;
-  buffer[1] = 0x0f;
-  buffer[2] = 0x01;
-  buffer[128] = 04;
-  buffer[129] = 16;
-  buffer[130] = 32;
+  OLED_clear();
   
-  OLED_display();
-  
-  // OLED_print("Hello World", 0, 0);
+  OLED_print("Hello world", 0, 0);
+
+  OLED_display();  
   OLED_displayOn();
 }

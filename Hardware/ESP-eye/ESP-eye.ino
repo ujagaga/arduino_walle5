@@ -1,17 +1,25 @@
 #include "camera_ctrl.h"
 #include "uart_cmd.h"
 #include "IR_ctrl.h"
-#include "i2c_devs.h"
 #include "tof_range.h"
 #include "gyro.h"
 #include "oled.h"
+#include "config.h"
 
+TwoWire I2CWire = TwoWire(0);
+
+
+void I2C_devs_init(){
+  /* Arduino Wire library for esp32 has 128 byte buffer. We need at least 130 for OLED row 
+  or we would need to make the display code more complicated to take buffer size in consideration. */
+  I2CWire.setBufferSize(256);
+  I2CWire.begin(I2C_SDA, I2C_SCL, 400000);    
+}
 
 void setup() {  
   Serial.begin(1000000);  
   
   CAM_init();
-
   I2C_devs_init();
   TOF_init();
   GYRO_init();

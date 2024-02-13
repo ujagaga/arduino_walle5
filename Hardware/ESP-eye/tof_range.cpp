@@ -1,5 +1,8 @@
 #include <DFRobot_VL6180X.h>
 #include "tof_range.h"
+#include "config.h"
+
+#define TOF_1_IIC_ADDRESS     0x29
 
 DFRobot_VL6180X VL6180X(TOF_1_IIC_ADDRESS, &I2CWire);
 

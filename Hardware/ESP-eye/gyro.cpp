@@ -1,5 +1,6 @@
-#include <MPU6050_light.h>
+#include "MPU6050_light.h"
 #include "gyro.h"
+#include "config.h"
 
 MPU6050 mpu(I2CWire);
 static bool init_ok = false;
