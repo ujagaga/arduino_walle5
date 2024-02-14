@@ -25,7 +25,7 @@
 #define IR_LED_GPIO_NUM    33
 
 
-void CAM_init(void);
+bool CAM_init(void);
 void CAM_capture(void);
 
 #endif

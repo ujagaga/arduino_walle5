@@ -5,7 +5,7 @@
 
 esp_err_t err; 
 
-void CAM_init(){
+bool CAM_init(){
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -49,6 +49,7 @@ void CAM_init(){
   err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.println("ERROR configuring camera");
+    return false;
   }else{
     sensor_t * s = esp_camera_sensor_get();
     // initial sensors are flipped vertically and colors are a bit saturated
@@ -63,6 +64,7 @@ void CAM_init(){
     }
     Serial.println("\nOK");
   }
+  return true;
 }
 
 void CAM_capture()

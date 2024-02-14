@@ -8,14 +8,16 @@ DFRobot_VL6180X VL6180X(TOF_1_IIC_ADDRESS, &I2CWire);
 
 static bool init_ok;
 
-void TOF_init(){
+bool TOF_init(){
   init_ok = VL6180X.begin();
   if(init_ok){
     Serial.println("TOF range sensor OK.");
     VL6180X.rangeSetInterMeasurementPeriod(30);    
   }else{
     Serial.println("ERROR setting up TOF range sensor.");
+    return false;
   }
+  return true;
 }
 
 uint8_t TOF_get_range(){

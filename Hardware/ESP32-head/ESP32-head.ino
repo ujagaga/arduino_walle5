@@ -17,14 +17,24 @@ void I2C_devs_init(){
 }
 
 void setup() {  
-  Serial.begin(1000000);  
+  Serial.begin(1000000);
+
+  char err_log[] = {'E', ':', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 0};  
   
-  CAM_init();
+  if(!CAM_init()){
+    err_log[2] = 'C';
+  }
   I2C_devs_init();
-  TOF_init();
-  GYRO_init();
-  OLED_init();
-  OLED_small_eyes();
+  if(!TOF_init()){
+    err_log[3] = 'T';
+  }
+  if(!GYRO_init()){
+    err_log[4] = 'G';
+  }
+  if(OLED_init()){
+    OLED_small_eyes();
+    OLED_debug(err_log);
+  }
 
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, LOW);

@@ -5,7 +5,7 @@
 MPU6050 mpu(I2CWire);
 static bool init_ok = false;
 
-void GYRO_init(){   
+bool GYRO_init(){   
   if(mpu.begin() == 0){
     init_ok = true;
     Serial.println("Calculating GYRO offsets, please do not move.");
@@ -14,7 +14,9 @@ void GYRO_init(){
     Serial.println("GYRO setup done.");
   }else{
     Serial.println("ERROR setting up GYRO sensor.");
+    return false;
   }    
+  return true;
 }
 
 
