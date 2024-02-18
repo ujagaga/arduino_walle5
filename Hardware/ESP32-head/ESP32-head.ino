@@ -20,20 +20,25 @@ void setup() {
   Serial.begin(1000000);
 
   char err_log[] = {'E', ':', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 0};  
-  
+  bool error_flag = false;
+
   if(!CAM_init()){
     err_log[2] = 'C';
+    error_flag = true;
   }
   I2C_devs_init();
   if(!TOF_init()){
     err_log[3] = 'T';
+    error_flag = true;
   }
   if(!GYRO_init()){
     err_log[4] = 'G';
+    error_flag = true;
   }
-  if(OLED_init()){
-    OLED_small_eyes();
-    OLED_debug(err_log);
+  if(OLED_init()){   
+    if(error_flag){
+      OLED_debug(err_log);
+    }    
   }
 
   pinMode(LED_GPIO_NUM, OUTPUT);
@@ -44,7 +49,10 @@ void setup() {
 }
 
 void loop() {  
-  int cmd = UART_checkCmd();
+  UART_process();
+
+  uint8_t cmd = UART_checkCmd();
+  
   uint8_t response = 0;
   
   switch(cmd){
@@ -101,6 +109,36 @@ void loop() {
         int16_t xyz_buffer[3] = {0};
         GYRO_get_rotation(xyz_buffer);
         UART_sendResponse(UCMD_GET_ROTATION, (uint8_t*)&xyz_buffer, 6);
+      }
+      break;
+
+    case UCMD_PRINT_TEXT:
+      {
+        char msg[OLED_MAX_STR_LEN] = {0};
+        if(UART_copyMgs(msg, OLED_MAX_STR_LEN, true)){
+          OLED_displayOff();
+          OLED_print(msg);  
+          OLED_displayOn();
+          UART_sendResponse(cmd, &response, 1);
+        }else{
+          response = 1;
+          UART_sendResponse(cmd, &response, 1);
+        }
+      }
+      break;
+
+    case UCMD_PRINT_GRAPHIC:
+      {
+        uint8_t* oled_buffer = OLED_getBuffer();   
+        if(UART_copyMgs(oled_buffer, OLED_BUFFER_SIZE, false)){
+          OLED_displayOff();
+          OLED_display();  
+          OLED_displayOn();
+          UART_sendResponse(cmd, &response, 1);
+        }else{
+          response = 1;
+          UART_sendResponse(cmd, &response, 1);
+        }
       }
       break;
 

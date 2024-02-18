@@ -21,8 +21,13 @@
 #define UCMD_GET_RANGE_FRONT  7
 #define UCMD_GET_RANGE_BACK   8
 #define UCMD_GET_ROTATION     9
+#define UCMD_PRINT_TEXT       10
+#define UCMD_PRINT_GRAPHIC    11
 
-int UART_checkCmd(void);
+uint8_t UART_checkCmd(void);
 void UART_sendResponse(int cmd, uint8_t* buf, uint32_t len);
+void UART_process(void);
+bool UART_copyMgs(uint8_t* outBuf, uint16_t len);
+uint16_t UART_getRxLen(void);
 
 #endif
